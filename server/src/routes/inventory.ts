@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { products, income, expenses, expenseCategories } from '../db/schema.js';
+import { products, income, expenses } from '../db/schema.js';
 
 const router = Router();
 
@@ -36,15 +36,14 @@ router.get('/', async (_req, res) => {
       soldMap.set(row.productId, Number(row.totalSold));
     }
 
-    // Fetch production expenses to calculate aging
+    // Fetch production expenses to calculate aging (expenses with a productId)
     const prodExpensesRes = await db
       .select({
         productId: expenses.productId,
         expenseDate: expenses.expenseDate,
       })
       .from(expenses)
-      .innerJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
-      .where(eq(expenseCategories.groupName, 'Production'));
+      .where(sql`${expenses.productId} IS NOT NULL`);
 
     const today = new Date();
 

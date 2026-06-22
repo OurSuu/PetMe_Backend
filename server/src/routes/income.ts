@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { income } from '../db/schema.js';
+import { income, products, productCategories, salesChannels } from '../db/schema.js';
 import { validateBody, incomeSchema } from '../middleware/validation.js';
 import { requireRole, auditLog } from '../middleware/auth.js';
 
@@ -33,6 +33,99 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('Failed to fetch income:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/** POST /api/income/sync — Sync preorders from the shared Order table */
+router.post('/sync', requireRole(['owner']), auditLog('Sync Preorders'), async (req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT * FROM "Order"`);
+    const allOrders = result.rows;
+
+    if (allOrders.length === 0) {
+      res.json({ message: 'No preorders to sync.', count: 0 });
+      return;
+    }
+
+    let channelId: number;
+    const existingChannel = await db.query.salesChannels.findFirst({
+      where: (ch, { ilike }) => ilike(ch.name, 'Preorder Website')
+    });
+
+    if (existingChannel) {
+      channelId = existingChannel.id;
+    } else {
+      const [newChannel] = await db.insert(salesChannels).values({
+        name: 'Preorder Website'
+      }).returning();
+      channelId = newChannel.id;
+    }
+
+    let syncedCount = 0;
+    for (const order of allOrders) {
+      const colorPart = order.color ? ` - ${order.color}` : '';
+      const sizePart = order.size ? ` - ${order.size}` : '';
+      const fullProductName = `${order.productName}${colorPart}${sizePart}`.trim();
+
+      let productId: number;
+      const existingProduct = await db.query.products.findFirst({
+        where: (prod, { ilike }) => ilike(prod.name, fullProductName)
+      });
+
+      if (existingProduct) {
+        productId = existingProduct.id;
+      } else {
+        let categoryId: number | null = null;
+        const existingCategory = await db.query.productCategories.findFirst({
+          where: (cat, { ilike }) => ilike(cat.name, 'Preorder')
+        });
+
+        if (existingCategory) {
+          categoryId = existingCategory.id;
+        } else {
+          const [newCategory] = await db.insert(productCategories).values({
+            name: 'Preorder',
+            slug: 'preorder'
+          }).returning();
+          categoryId = newCategory.id;
+        }
+
+        const [newProduct] = await db.insert(products).values({
+          name: fullProductName,
+          categoryId: categoryId,
+          baseCost: '0'
+        }).returning();
+        productId = newProduct.id;
+      }
+
+      const existingIncome = await db.query.income.findFirst({
+        where: (inc, { and, eq }) => and(
+          eq(inc.productId, productId),
+          eq(inc.quantity, Number(order.quantity))
+        )
+      });
+
+      const orderDate = order.createdAt ? new Date(String(order.createdAt)).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+
+      if (!existingIncome) {
+        await db.insert(income).values({
+          productId,
+          channelId,
+          quantity: Number(order.quantity) || 1,
+          fullPrice: String(order.totalPrice || 0),
+          netAmount: String(order.totalPrice || 0),
+          cashFlowStatus: order.status === 'paid' ? 'cleared' : 'pending',
+          isCleared: order.status === 'paid',
+          saleDate: orderDate
+        });
+        syncedCount++;
+      }
+    }
+
+    res.json({ message: `Successfully synced ${syncedCount} new preorders.`, count: syncedCount });
+  } catch (err) {
+    console.error('Failed to sync orders:', err);
+    res.status(500).json({ error: 'Failed to sync orders' });
   }
 });
 

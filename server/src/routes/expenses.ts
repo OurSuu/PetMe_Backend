@@ -48,6 +48,7 @@ router.get('/', async (req, res) => {
 
 /** POST /api/expenses — create with optional receipt upload */
 router.post('/', upload.single('receipt'), auditLog('Create Expense'), async (req, res) => {
+  try {
     // Parse JSON fields that may come as strings from multipart/form-data
     const body = { ...req.body };
     if (typeof body.quantity === 'string') body.quantity = Number(body.quantity);

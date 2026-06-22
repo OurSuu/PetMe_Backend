@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Download } from 'lucide-react';
+import { Plus, Trash2, Edit2, Download, RefreshCw } from 'lucide-react';
 import Header from '../components/layout/Header';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -24,6 +24,7 @@ export default function IncomePage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedIncome, setSelectedIncome] = useState<Income | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [formData, setFormData] = useState({
     productId: '',
@@ -144,6 +145,20 @@ export default function IncomePage() {
     }
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.post<{message: string, count: number}>('/income/sync');
+      alert(res.message || `Successfully synced preorders.`);
+      fetchData();
+    } catch (error: any) {
+      console.error('Failed to sync preorders', error);
+      alert(error.response?.data?.error || 'Failed to sync preorders.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleToggleCleared = async (income: Income) => {
     try {
       await api.put(`/income/${income.id}`, {
@@ -229,6 +244,9 @@ export default function IncomePage() {
     <div className="flex flex-col h-full overflow-hidden">
       <Header title="Income & Sales">
         <div className="flex gap-3">
+          <Button onClick={handleSync} variant="secondary" icon={<RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />} loading={syncing}>
+            Sync Preorders
+          </Button>
           <Button onClick={handleExport} variant="secondary" icon={<Download className="w-4 h-4" />}>
             Export CSV
           </Button>
