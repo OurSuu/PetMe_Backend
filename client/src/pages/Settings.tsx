@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { api } from '../api/client';
 import { Plus, Trash2, Edit2 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import Card from '../components/ui/Card';
