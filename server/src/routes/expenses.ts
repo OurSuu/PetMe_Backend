@@ -5,6 +5,7 @@ import { expenses } from '../db/schema.js';
 import { validateBody, expenseSchema } from '../middleware/validation.js';
 import { requireRole, auditLog } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
+import { products, productCategories } from '../db/schema.js';
 
 const router = Router();
 
@@ -26,16 +27,15 @@ router.get('/', async (req, res) => {
     }
 
     if (conditions.length > 0) {
-      // Use select + join approach when filtering
       const rows = await db.query.expenses.findMany({
-        with: { category: true, product: true },
+        with: { product: true },
         where: conditions.length === 1 ? conditions[0] : and(...conditions),
         orderBy: (expenses, { desc }) => [desc(expenses.expenseDate)],
       });
       res.json(rows);
     } else {
       const rows = await db.query.expenses.findMany({
-        with: { category: true, product: true },
+        with: { product: true },
         orderBy: (expenses, { desc }) => [desc(expenses.expenseDate)],
       });
       res.json(rows);
@@ -48,10 +48,8 @@ router.get('/', async (req, res) => {
 
 /** POST /api/expenses — create with optional receipt upload */
 router.post('/', upload.single('receipt'), auditLog('Create Expense'), async (req, res) => {
-  try {
     // Parse JSON fields that may come as strings from multipart/form-data
     const body = { ...req.body };
-    if (typeof body.categoryId === 'string') body.categoryId = Number(body.categoryId);
     if (typeof body.quantity === 'string') body.quantity = Number(body.quantity);
 
     const result = expenseSchema.safeParse(body);
@@ -64,6 +62,30 @@ router.post('/', upload.single('receipt'), auditLog('Create Expense'), async (re
     }
 
     const values: Record<string, unknown> = { ...result.data };
+    
+    // Auto-create product if productName is provided
+    let finalProductId = values.productId;
+    if (values.productName && typeof values.productName === 'string' && values.productName.trim() !== '') {
+      const pName = values.productName.trim();
+      const existingProduct = await db.query.products.findFirst({
+        where: eq(products.name, pName)
+      });
+      
+      if (existingProduct) {
+        finalProductId = existingProduct.id;
+      } else {
+        // Create new product
+        const [newProduct] = await db.insert(products).values({
+          name: pName,
+          baseCost: '0'
+        }).returning();
+        finalProductId = newProduct.id;
+      }
+    }
+    
+    // Remove productName before insert
+    delete values.productName;
+    values.productId = finalProductId;
 
     // Attach receipt path if file was uploaded
     if (req.file) {
@@ -91,9 +113,32 @@ router.put('/:id', requireRole(['owner']), validateBody(expenseSchema), auditLog
       return;
     }
 
+    const values = { ...result.data };
+    
+    let finalProductId = values.productId;
+    if (values.productName && typeof values.productName === 'string' && values.productName.trim() !== '') {
+      const pName = values.productName.trim();
+      const existingProduct = await db.query.products.findFirst({
+        where: eq(products.name, pName)
+      });
+      
+      if (existingProduct) {
+        finalProductId = existingProduct.id;
+      } else {
+        const [newProduct] = await db.insert(products).values({
+          name: pName,
+          baseCost: '0'
+        }).returning();
+        finalProductId = newProduct.id;
+      }
+    }
+    
+    delete values.productName;
+    values.productId = finalProductId;
+
     const [updated] = await db
       .update(expenses)
-      .set({ ...result.data, updatedAt: new Date() })
+      .set({ ...values, updatedAt: new Date() })
       .where(eq(expenses.id, id))
       .returning();
 

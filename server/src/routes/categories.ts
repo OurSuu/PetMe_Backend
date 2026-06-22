@@ -11,7 +11,6 @@ import {
 import {
   validateBody,
   productCategorySchema,
-  expenseCategorySchema,
   salesChannelSchema,
 } from '../middleware/validation.js';
 import { requireRole, auditLog } from '../middleware/auth.js';
@@ -105,96 +104,7 @@ router.delete('/api/product-categories/:id', requireRole(['owner']), auditLog('D
   }
 });
 
-// ============================================================
-// Expense Categories
-// ============================================================
 
-/** GET /api/expense-categories — list all, grouped by groupName */
-router.get('/api/expense-categories', async (_req, res) => {
-  try {
-    const rows = await db
-      .select()
-      .from(expenseCategories)
-      .orderBy(expenseCategories.groupName, expenseCategories.name);
-
-    // Group by groupName for convenient frontend consumption
-    const grouped = rows.reduce<Record<string, typeof rows>>((acc, row) => {
-      const group = row.groupName;
-      if (!acc[group]) acc[group] = [];
-      acc[group].push(row);
-      return acc;
-    }, {});
-
-    res.json({ items: rows, grouped });
-  } catch (err) {
-    console.error('Failed to fetch expense categories:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/** POST /api/expense-categories — create */
-router.post('/api/expense-categories', requireRole(['owner']), validateBody(expenseCategorySchema), auditLog('Create Expense Category'), async (req, res) => {
-  try {
-    const [created] = await db.insert(expenseCategories).values(req.body).returning();
-    res.status(201).json(created);
-  } catch (err) {
-    console.error('Failed to create expense category:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/** PUT /api/expense-categories/:id — update */
-router.put('/api/expense-categories/:id', requireRole(['owner']), validateBody(expenseCategorySchema), auditLog('Update Expense Category'), async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const [updated] = await db
-      .update(expenseCategories)
-      .set(req.body)
-      .where(eq(expenseCategories.id, id))
-      .returning();
-
-    if (!updated) {
-      res.status(404).json({ error: 'Expense category not found' });
-      return;
-    }
-    res.json(updated);
-  } catch (err) {
-    console.error('Failed to update expense category:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/** DELETE /api/expense-categories/:id — delete */
-router.delete('/api/expense-categories/:id', requireRole(['owner']), auditLog('Delete Expense Category'), async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-
-    // Check if category is in use by expenses
-    const expenseCount = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(expenses)
-      .where(eq(expenses.categoryId, id));
-
-    if (expenseCount[0].count > 0) {
-      res.status(409).json({ error: 'Cannot delete: Category is in use by existing expenses' });
-      return;
-    }
-
-    const [deleted] = await db
-      .delete(expenseCategories)
-      .where(eq(expenseCategories.id, id))
-      .returning();
-
-    if (!deleted) {
-      res.status(404).json({ error: 'Expense category not found' });
-      return;
-    }
-    res.json({ message: 'Expense category deleted', data: deleted });
-  } catch (err) {
-    console.error('Failed to delete expense category:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // ============================================================
 // Sales Channels

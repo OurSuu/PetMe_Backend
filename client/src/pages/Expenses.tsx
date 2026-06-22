@@ -6,16 +6,14 @@ import Button from '../components/ui/Button';
 import DataTable, { Column } from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Badge from '../components/ui/Badge';
 import { api } from '../api/client';
 import { downloadCSV } from '../utils/export';
-import { Expense, ExpenseCategory, Product } from '../types';
+import { Expense, Product } from '../types';
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const role = localStorage.getItem('userRole') || 'staff';
@@ -28,28 +26,24 @@ export default function Expenses() {
 
   // Form state
   const [formData, setFormData] = useState({
-    categoryId: '',
-    productId: '',
+    isProduct: false,
+    productName: '',
+    productId: '', // still keep for existing product selection if needed, though we primarily use productName
     description: '',
+    note: '',
     amount: '',
     quantity: '1',
-    expenseDate: new Date().toISOString().split('T')[0],
-    
-    // Custom logic fields for production
-    blankCost: '',
-    screenCost: ''
+    expenseDate: new Date().toISOString().split('T')[0]
   });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [expensesRes, categoriesRes, productsRes] = await Promise.all([
+      const [expensesRes, productsRes] = await Promise.all([
         api.get<Expense[]>('/expenses'),
-        api.get<{items: ExpenseCategory[], grouped: any}>('/expense-categories'),
         api.get<Product[]>('/products')
       ]);
       setExpenses(expensesRes || []);
-      setCategories(categoriesRes?.items || []);
       setProducts(productsRes || []);
     } catch (error) {
       console.error('Failed to fetch data', error);
@@ -62,33 +56,30 @@ export default function Expenses() {
     fetchData();
   }, []);
 
-  const selectedCategory = categories.find(c => c.id.toString() === formData.categoryId);
-  const isProduction = selectedCategory?.groupName === 'Production';
-
   const handleOpenModal = (expense?: Expense) => {
     if (expense) {
       setSelectedExpense(expense);
       setFormData({
-        categoryId: expense.categoryId.toString(),
+        isProduct: !!expense.productId,
+        productName: expense.product?.name || '',
         productId: expense.productId?.toString() || '',
         description: expense.description || '',
+        note: expense.note || '',
         amount: expense.amount,
         quantity: expense.quantity.toString(),
-        expenseDate: expense.expenseDate,
-        blankCost: '',
-        screenCost: ''
+        expenseDate: expense.expenseDate
       });
     } else {
       setSelectedExpense(null);
       setFormData({
-        categoryId: categories.length > 0 ? categories[0].id.toString() : '',
+        isProduct: false,
+        productName: '',
         productId: '',
         description: '',
+        note: '',
         amount: '',
         quantity: '1',
-        expenseDate: new Date().toISOString().split('T')[0],
-        blankCost: '',
-        screenCost: ''
+        expenseDate: new Date().toISOString().split('T')[0]
       });
     }
     setIsModalOpen(true);
@@ -98,23 +89,20 @@ export default function Expenses() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      let finalAmount = formData.amount;
-      
-      // Calculate production cost: (Blank + Screen)
-      if (isProduction && formData.blankCost && formData.screenCost) {
-        finalAmount = (parseFloat(formData.blankCost) + parseFloat(formData.screenCost)).toString();
-      }
-
       const payload: any = {
-        categoryId: parseInt(formData.categoryId),
         description: formData.description,
-        amount: finalAmount,
+        note: formData.note,
+        amount: formData.amount,
         quantity: parseInt(formData.quantity),
         expenseDate: formData.expenseDate
       };
       
-      if (isProduction && formData.productId) {
-        payload.productId = parseInt(formData.productId);
+      if (formData.isProduct) {
+        payload.productName = formData.productName;
+        // Optionally pass productId if they didn't change the name and we know it
+      } else {
+        payload.productId = null;
+        payload.productName = '';
       }
 
       if (selectedExpense) {
@@ -162,9 +150,10 @@ export default function Expenses() {
   const handleExport = () => {
     const exportData = expenses.map(e => ({
       Date: e.expenseDate,
-      Category: e.category?.name || 'Unknown',
-      Group: e.category?.groupName || 'Unknown',
-      Description: e.description || '',
+      Type: e.productId ? 'Product Cost' : 'General',
+      Product: e.product?.name || '',
+      Title: e.description || '',
+      Note: e.note || '',
       CostPerUnit: e.amount,
       Quantity: e.quantity,
       Total: parseFloat(e.amount) * e.quantity,
@@ -180,28 +169,22 @@ export default function Expenses() {
       render: (val) => new Date(val).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
     },
     {
-      key: 'category.name',
-      header: 'Category',
+      key: 'type',
+      header: 'Type',
       render: (_, row) => (
-        <Badge variant={row.category?.groupName === 'Production' ? 'warning' : 'default'}>
-          {row.category?.name || 'Unknown'}
+        <Badge variant={row.productId ? 'warning' : 'default'}>
+          {row.productId ? 'Product Cost' : 'General'}
         </Badge>
       )
     },
     {
       key: 'description',
-      header: 'Description'
+      header: 'Title / Item'
     },
     {
-      key: 'amount',
-      header: 'Cost / Unit',
-      align: 'right',
-      render: (val) => `฿${parseFloat(val).toLocaleString()}`
-    },
-    {
-      key: 'quantity',
-      header: 'Qty',
-      align: 'center'
+      key: 'product.name',
+      header: 'Product',
+      render: (_, row) => row.product?.name || '-'
     },
     {
       key: 'total',
@@ -259,74 +242,76 @@ export default function Expenses() {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selectedExpense ? "Edit Expense" : "Log New Expense"}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Select
-            label="Category"
-            value={formData.categoryId}
-            onChange={(e) => setFormData({...formData, categoryId: e.target.value})}
-            options={categories.map(c => ({ value: c.id, label: `${c.groupName} - ${c.name}` }))}
-            required
-          />
-          {isProduction && (
-            <Select
-              label="Related Product"
-              value={formData.productId}
-              onChange={(e) => setFormData({...formData, productId: e.target.value})}
-              options={[{ value: '', label: 'Select Product...' }, ...products.map(p => ({ value: p.id, label: p.name }))]}
-              required
-            />
-          )}
           <Input
-            label="Description"
+            label="Title / Item Name"
             value={formData.description}
             onChange={(e) => setFormData({...formData, description: e.target.value})}
-            placeholder="e.g., T-Shirt Blank XL"
-          />
-          <Input
-            label="Quantity"
-            type="number"
-            min="1"
-            value={formData.quantity}
-            onChange={(e) => setFormData({...formData, quantity: e.target.value})}
+            placeholder="e.g., ค่าสกรีนเสื้อ, ค่าขนส่ง"
             required
           />
-          
-          {isProduction ? (
-            <div className="grid grid-cols-2 gap-4">
+
+          <div className="flex items-center gap-2 pt-2 pb-2">
+            <input
+              type="checkbox"
+              id="isProduct"
+              checked={formData.isProduct}
+              onChange={(e) => setFormData({...formData, isProduct: e.target.checked})}
+              className="w-4 h-4 rounded border-border-hover bg-surface-secondary text-accent-primary focus:ring-accent-primary/50 cursor-pointer"
+            />
+            <label htmlFor="isProduct" className="text-sm text-text-primary cursor-pointer select-none">
+              This is a Product Stock Cost (เป็นต้นทุนสินค้า)
+            </label>
+          </div>
+
+          {formData.isProduct && (
+            <div className="relative">
               <Input
-                label="Blank Cost (฿)"
-                type="number"
-                step="0.01"
-                value={formData.blankCost}
-                onChange={(e) => setFormData({...formData, blankCost: e.target.value})}
-                required={!selectedExpense}
+                label="Product Name"
+                value={formData.productName}
+                onChange={(e) => setFormData({...formData, productName: e.target.value})}
+                placeholder="e.g., PET ME — หน้างอ สีดำ M"
+                required={formData.isProduct}
+                list="product-suggestions"
               />
-              <Input
-                label="Screen Cost (฿)"
-                type="number"
-                step="0.01"
-                value={formData.screenCost}
-                onChange={(e) => setFormData({...formData, screenCost: e.target.value})}
-                required={!selectedExpense}
-              />
+              <datalist id="product-suggestions">
+                {products.map(p => (
+                  <option key={p.id} value={p.name} />
+                ))}
+              </datalist>
+              <p className="text-xs text-text-muted mt-1">
+                Type the product name. If it doesn't exist, it will be created automatically.
+              </p>
             </div>
-          ) : (
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Amount (Cost per unit ฿)"
+              label="Total Amount (฿)"
               type="number"
               step="0.01"
               value={formData.amount}
               onChange={(e) => setFormData({...formData, amount: e.target.value})}
               required
             />
-          )}
+            <Input
+              label="Date"
+              type="date"
+              value={formData.expenseDate}
+              onChange={(e) => setFormData({...formData, expenseDate: e.target.value})}
+              required
+            />
+          </div>
 
-          <Input
-            label="Date"
-            type="date"
-            value={formData.expenseDate}
-            onChange={(e) => setFormData({...formData, expenseDate: e.target.value})}
-            required
-          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-text-secondary">Note / Remarks</label>
+            <textarea
+              className="w-full bg-surface-secondary border border-border-hover rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/50 transition-colors"
+              rows={3}
+              value={formData.note}
+              onChange={(e) => setFormData({...formData, note: e.target.value})}
+              placeholder="Any additional details..."
+            />
+          </div>
 
           <div className="pt-4 flex justify-end gap-3 border-t border-border-primary/50">
             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>

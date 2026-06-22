@@ -32,8 +32,8 @@ export interface Product {
 // Transaction Types
 export interface Expense {
   id: number;
-  categoryId: number;
   description: string | null;
+  note: string | null;
   amount: string;
   quantity: number;
   costPerUnit: string | null;
@@ -42,7 +42,6 @@ export interface Expense {
   expenseDate: string;
   createdAt: string;
   updatedAt: string;
-  category?: ExpenseCategory;
   productId?: number | null;
   product?: Product;
 }
@@ -139,9 +138,10 @@ export interface ApiResponse<T> {
 
 // Form Types
 export interface ExpenseFormData {
-  categoryId: number;
   productId?: number;
+  productName?: string;
   description?: string;
+  note?: string;
   amount: string;
   quantity: number;
   costPerUnit?: string;

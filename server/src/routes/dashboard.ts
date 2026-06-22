@@ -4,7 +4,6 @@ import { db } from '../db/index.js';
 import {
   income,
   expenses,
-  expenseCategories,
   products,
   productCategories,
   settings,
@@ -110,17 +109,16 @@ router.get('/', async (req, res) => {
     }
     const taxProvision = Math.max(netProfit, 0) * taxRate;
 
-    // ── Expenses by category (for pie chart) ────────────────
+    // ── Expenses by type (for pie chart) ────────────────
     const expensesByCategory = await db
       .select({
-        name: expenseCategories.name,
-        group: expenseCategories.groupName,
+        name: sql<string>`CASE WHEN ${expenses.productId} IS NOT NULL THEN 'Product Costs' ELSE 'General Expenses' END`,
+        group: sql<string>`CASE WHEN ${expenses.productId} IS NOT NULL THEN 'Production' ELSE 'General' END`,
         value: sql<string>`COALESCE(SUM(${expenses.amount} * ${expenses.quantity}), 0)`,
       })
       .from(expenses)
-      .innerJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
       .where(and(gte(expenses.expenseDate, start), lte(expenses.expenseDate, end)))
-      .groupBy(expenseCategories.name, expenseCategories.groupName);
+      .groupBy(sql`CASE WHEN ${expenses.productId} IS NOT NULL THEN 'Product Costs' ELSE 'General Expenses' END`, sql`CASE WHEN ${expenses.productId} IS NOT NULL THEN 'Production' ELSE 'General' END`);
 
     // ── Sales by product category (for bar chart) ───────────
     const salesByCategory = await db

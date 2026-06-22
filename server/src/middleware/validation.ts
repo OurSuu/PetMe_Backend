@@ -72,9 +72,10 @@ export const productSchema = z.object({
 });
 
 export const expenseSchema = z.object({
-  categoryId: z.number().int().positive(),
   productId: z.number().int().positive().optional().nullable(),
+  productName: z.string().optional(),
   description: z.string().optional().nullable(),
+  note: z.string().optional().nullable(),
   amount: z.string().or(z.number()).transform(String),
   quantity: z.number().int().min(1).default(1),
   costPerUnit: z.string().or(z.number()).transform(String).optional().nullable(),

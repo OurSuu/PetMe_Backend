@@ -8,7 +8,7 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import DataTable, { Column } from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
-import { Product, ProductCategory, ExpenseCategory, SalesChannel, Setting } from '../types';
+import { Product, ProductCategory, SalesChannel, Setting } from '../types';
 
 export default function Settings() {
   const [taxRate, setTaxRate] = useState('3');
@@ -21,7 +21,6 @@ export default function Settings() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [expCategories, setExpCategories] = useState<ExpenseCategory[]>([]);
   const [channels, setChannels] = useState<SalesChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const role = localStorage.getItem('userRole') || 'staff';
@@ -34,23 +33,17 @@ export default function Settings() {
   const [catFormData, setCatFormData] = useState({ name: '' });
   const [deleteError, setDeleteError] = useState('');
 
-  // Expense Category Modal State
-  const [isExpCatModalOpen, setIsExpCatModalOpen] = useState(false);
-  const [isExpCatDeleteOpen, setIsExpCatDeleteOpen] = useState(false);
-  const [selectedExpCat, setSelectedExpCat] = useState<ExpenseCategory | null>(null);
-  const [expCatFormData, setExpCatFormData] = useState({ name: '', groupName: 'Production' });
-  const [expDeleteError, setExpDeleteError] = useState('');
+
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [taxRes, webhookUrlRes, webhookModeRes, prodRes, catRes, expCatRes, chanRes] = await Promise.all([
+      const [taxRes, webhookUrlRes, webhookModeRes, prodRes, catRes, chanRes] = await Promise.all([
         api.get<Setting>('/settings/tax_provision').catch(() => null),
         api.get<Setting>('/settings/webhook_url').catch(() => null),
         api.get<Setting>('/settings/webhook_mode').catch(() => null),
         api.get<Product[]>('/products').catch(() => []),
         api.get<ProductCategory[]>('/product-categories').catch(() => []),
-        api.get<{items: ExpenseCategory[], grouped: any}>('/expense-categories').catch(() => null),
         api.get<SalesChannel[]>('/sales-channels').catch(() => [])
       ]);
 
@@ -65,7 +58,6 @@ export default function Settings() {
 
       if (prodRes) setProducts(prodRes as any);
       if (catRes) setCategories(catRes);
-      if (expCatRes?.items) setExpCategories(expCatRes.items);
       if (chanRes) setChannels(chanRes);
     } catch (error) {
       console.error('Failed to fetch settings', error);
@@ -174,66 +166,14 @@ export default function Settings() {
     }
   };
 
-  const handleOpenExpCatModal = (cat?: ExpenseCategory) => {
-    if (cat) {
-      setSelectedExpCat(cat);
-      setExpCatFormData({ name: cat.name, groupName: cat.groupName });
-    } else {
-      setSelectedExpCat(null);
-      setExpCatFormData({ name: '', groupName: 'Production' });
-    }
-    setIsExpCatModalOpen(true);
-  };
 
-  const handleExpCatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      const payload = { name: expCatFormData.name, groupName: expCatFormData.groupName };
-
-      if (selectedExpCat) {
-        await api.put(`/expense-categories/${selectedExpCat.id}`, payload);
-      } else {
-        await api.post('/expense-categories', payload);
-      }
-      setIsExpCatModalOpen(false);
-      fetchData();
-    } catch (error: any) {
-      console.error('Failed to save expense category', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleExpCatDelete = async () => {
-    if (!selectedExpCat) return;
-    setSubmitting(true);
-    setExpDeleteError('');
-    try {
-      await api.delete(`/expense-categories/${selectedExpCat.id}`);
-      setIsExpCatDeleteOpen(false);
-      fetchData();
-    } catch (error: any) {
-      console.error('Failed to delete expense category', error);
-      if (error?.status === 409) {
-        setExpDeleteError('Cannot delete: This category is currently assigned to one or more expenses.');
-      } else {
-        setExpDeleteError('An unexpected error occurred while deleting.');
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const catColumns: Column<ProductCategory>[] = [
     { key: 'name', header: 'Name', sortable: true },
     { key: 'slug', header: 'Slug' }
   ];
 
-  const expCatColumns: Column<ExpenseCategory>[] = [
-    { key: 'name', header: 'Name', sortable: true },
-    { key: 'groupName', header: 'Group', sortable: true, render: (val) => <Badge variant="info">{val as string}</Badge> }
-  ];
+
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -342,38 +282,7 @@ export default function Settings() {
             </div>
           </Card>
 
-          <Card 
-            title="Expense Categories" 
-            headerAction={
-              <Button onClick={() => handleOpenExpCatModal()} size="sm" icon={<Plus className="w-4 h-4" />}>
-                New
-              </Button>
-            }
-          >
-            <div className="mt-4">
-              <DataTable 
-                columns={expCatColumns} 
-                data={expCategories} 
-                loading={loading}
-                actions={role === 'owner' ? (row) => (
-                  <>
-                    <button 
-                      onClick={() => handleOpenExpCatModal(row)} 
-                      className="p-1 text-text-muted hover:text-accent-primary transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedExpCat(row); setIsExpCatDeleteOpen(true); setExpDeleteError(''); }} 
-                      className="p-1 text-text-muted hover:text-accent-danger transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </>
-                ) : undefined}
-              />
-            </div>
-          </Card>
+
 
           <div className="space-y-6 lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Products Reference">
@@ -439,58 +348,7 @@ export default function Settings() {
         </div>
       </Modal>
 
-      <Modal isOpen={isExpCatModalOpen} onClose={() => setIsExpCatModalOpen(false)} title={selectedExpCat ? "Edit Expense Category" : "New Expense Category"} size="sm">
-        <form onSubmit={handleExpCatSubmit} className="space-y-4">
-          <Input
-            label="Category Name"
-            value={expCatFormData.name}
-            onChange={(e) => setExpCatFormData({...expCatFormData, name: e.target.value})}
-            required
-            autoFocus
-          />
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-text-secondary">Group Name</label>
-            <select 
-              className="w-full bg-surface-primary border border-border-hover rounded-lg px-4 py-2.5 text-text-primary focus:outline-none focus:border-accent-primary transition-colors"
-              value={expCatFormData.groupName}
-              onChange={(e) => setExpCatFormData({...expCatFormData, groupName: e.target.value})}
-              required
-            >
-              <option value="Production">Production</option>
-              <option value="Packaging">Packaging</option>
-              <option value="Shipping">Shipping</option>
-              <option value="Fees & Taxes">Fees & Taxes</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Operating">Operating</option>
-            </select>
-          </div>
-          <div className="pt-4 flex justify-end gap-3 border-t border-border-primary/50">
-            <Button type="button" variant="ghost" onClick={() => setIsExpCatModalOpen(false)}>Cancel</Button>
-            <Button type="submit" loading={submitting}>Save</Button>
-          </div>
-        </form>
-      </Modal>
 
-      <Modal isOpen={isExpCatDeleteOpen} onClose={() => setIsExpCatDeleteOpen(false)} title="Delete Expense Category" size="sm">
-        <div className="space-y-4">
-          <p className="text-sm text-text-secondary">
-            Are you sure you want to delete the expense category <strong>{selectedExpCat?.name}</strong>?
-          </p>
-          
-          {expDeleteError && (
-            <div className="p-3 bg-accent-danger/10 border border-accent-danger text-accent-danger rounded text-sm">
-              {expDeleteError}
-            </div>
-          )}
-
-          <div className="pt-4 flex justify-end gap-3 border-t border-border-primary/50">
-            <Button type="button" variant="ghost" onClick={() => setIsExpCatDeleteOpen(false)}>Cancel</Button>
-            {(!expDeleteError) && (
-              <Button type="button" variant="danger" onClick={handleExpCatDelete} loading={submitting}>Delete</Button>
-            )}
-          </div>
-        </div>
-      </Modal>
 
     </div>
   );

@@ -74,9 +74,9 @@ export const products = pgTable('products', {
 /** Expense transactions */
 export const expenses = pgTable('expenses', {
   id: serial('id').primaryKey(),
-  categoryId: integer('category_id').references(() => expenseCategories.id, { onDelete: 'set null' }).notNull(),
   productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
   description: text('description'),
+  note: text('note'),
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
   quantity: integer('quantity').default(1).notNull(),
   costPerUnit: decimal('cost_per_unit', { precision: 12, scale: 2 }),
@@ -134,10 +134,6 @@ export const expenseCategoriesRelations = relations(expenseCategories, ({ many }
 }));
 
 export const expensesRelations = relations(expenses, ({ one }) => ({
-  category: one(expenseCategories, {
-    fields: [expenses.categoryId],
-    references: [expenseCategories.id],
-  }),
   product: one(products, {
     fields: [expenses.productId],
     references: [products.id],

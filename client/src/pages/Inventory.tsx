@@ -54,7 +54,6 @@ export default function Inventory() {
       if (invRes && expRes) {
         const extended = invRes.map(item => {
           const producedExpenses = expRes.filter(e => 
-            e.category?.groupName === 'Production' && 
             e.productId === item.product.id
           );
           
