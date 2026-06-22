@@ -4,6 +4,7 @@
   "private": true,
   "description": "Back-office financial dashboard for PetMe clothing brand",
   "scripts": {
+    "postinstall": "npm install --prefix client && npm install --prefix server",
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "build": "npm run build --prefix client && npm run build --prefix server",
     "db:generate": "npm run db:generate --prefix server",
