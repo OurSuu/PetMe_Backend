@@ -35,8 +35,8 @@ export default function IncomePage() {
     cashFlowStatus: 'cleared'
   });
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const [incomeRes, productsRes, channelsRes] = await Promise.all([
         api.get<Income[]>('/income'),
@@ -49,12 +49,14 @@ export default function IncomePage() {
     } catch (error) {
       console.error('Failed to fetch data', error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
+    const intervalId = setInterval(() => fetchData(false), 10000); // Poll every 10s
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleOpenModal = (income?: Income) => {

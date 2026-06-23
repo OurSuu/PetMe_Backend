@@ -19,8 +19,8 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRangeValue>({ period: 'month' });
 
   useEffect(() => {
-    const fetchDashboard = async () => {
-      setLoading(true);
+    const fetchDashboard = async (showLoading = true) => {
+      if (showLoading) setLoading(true);
       try {
         const queryParams = new URLSearchParams();
         if (dateRange.period) queryParams.append('period', dateRange.period);
@@ -28,16 +28,17 @@ export default function Dashboard() {
         if (dateRange.endDate) queryParams.append('endDate', dateRange.endDate);
 
         const response = await api.get<{ metrics: any, expensesByCategory: any[], salesByCategory: any[], dailySummary: any }>(`/dashboard?${queryParams.toString()}`);
-        // The API returns { period, metrics, expensesByCategory, salesByCategory, dailySummary }
         setData(response as any);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
-        setLoading(false);
+        if (showLoading) setLoading(false);
       }
     };
 
     fetchDashboard();
+    const intervalId = setInterval(() => fetchDashboard(false), 10000);
+    return () => clearInterval(intervalId);
   }, [dateRange]);
 
   const metrics = data?.metrics;

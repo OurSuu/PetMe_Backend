@@ -35,8 +35,8 @@ export default function Expenses() {
     expenseDate: new Date().toISOString().split('T')[0]
   });
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const [expensesRes, productsRes] = await Promise.all([
         api.get<Expense[]>('/expenses'),
@@ -47,12 +47,14 @@ export default function Expenses() {
     } catch (error) {
       console.error('Failed to fetch data', error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
+    const intervalId = setInterval(() => fetchData(false), 10000); // Poll every 10s
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleOpenModal = (expense?: Expense) => {
