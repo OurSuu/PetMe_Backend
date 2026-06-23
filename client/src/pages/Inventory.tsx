@@ -43,8 +43,8 @@ export default function Inventory() {
     reason: ''
   });
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const [invRes, expRes, catRes] = await Promise.all([
         api.get<InventoryItem[]>('/inventory'),
@@ -78,12 +78,14 @@ export default function Inventory() {
     } catch (error) {
       console.error('Failed to fetch data', error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
+    const intervalId = setInterval(() => fetchData(false), 10000); // Poll every 10s
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleOpenModal = (product?: Product) => {
