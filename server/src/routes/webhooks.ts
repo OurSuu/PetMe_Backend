@@ -80,6 +80,7 @@ router.post('/preorder', async (req, res) => {
     // 3. Create or Update Income record
     const preorderId = order.id || order.orderId;
     const isShipped = order.status === 'shipped';
+    const shouldBeInIncome = ['paid', 'confirmed', 'producing', 'shipped'].includes(order.status);
 
     let incomeRecord;
     
@@ -90,14 +91,29 @@ router.post('/preorder', async (req, res) => {
 
       if (existingIncome) {
         // Update existing record
+        const updateData: any = { isShipped };
+        
+        if (order.status === 'cancelled' || order.status === 'pending') {
+          updateData.isCleared = false;
+          updateData.cashFlowStatus = 'pending';
+        } else {
+          updateData.isCleared = true;
+          updateData.cashFlowStatus = 'cleared';
+        }
+
         [incomeRecord] = await db.update(income)
-          .set({ isShipped })
+          .set(updateData)
           .where(eq(income.id, existingIncome.id))
           .returning();
           
         res.status(200).json({ success: true, message: 'Preorder updated successfully', data: incomeRecord });
         return;
       }
+    }
+
+    if (!shouldBeInIncome) {
+      res.status(200).json({ success: true, message: `Preorder ignored because status is ${order.status}` });
+      return;
     }
 
     [incomeRecord] = await db.insert(income).values({
