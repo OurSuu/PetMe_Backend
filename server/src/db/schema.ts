@@ -113,6 +113,15 @@ export const settings = pgTable('settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Manual stock adjustments */
+export const stockAdjustments = pgTable('stock_adjustments', {
+  id: serial('id').primaryKey(),
+  productId: integer('product_id').references(() => products.id, { onDelete: 'cascade' }).notNull(),
+  quantity: integer('quantity').notNull(), // positive or negative
+  reason: varchar('reason', { length: 255 }),
+  date: timestamp('date', { withTimezone: true }).defaultNow().notNull(),
+});
+
 // ============================================================
 // Relations
 // ============================================================
@@ -128,6 +137,7 @@ export const productsRelations = relations(products, ({ one, many }) => ({
   }),
   incomeEntries: many(income),
   expenses: many(expenses),
+  stockAdjustments: many(stockAdjustments),
 }));
 
 export const expenseCategoriesRelations = relations(expenseCategories, ({ many }) => ({
@@ -153,6 +163,13 @@ export const incomeRelations = relations(income, ({ one }) => ({
   channel: one(salesChannels, {
     fields: [income.channelId],
     references: [salesChannels.id],
+  }),
+}));
+
+export const stockAdjustmentsRelations = relations(stockAdjustments, ({ one }) => ({
+  product: one(products, {
+    fields: [stockAdjustments.productId],
+    references: [products.id],
   }),
 }));
 
@@ -197,3 +214,6 @@ export type NewUser = typeof users.$inferInsert;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
+
+export type StockAdjustment = typeof stockAdjustments.$inferSelect;
+export type NewStockAdjustment = typeof stockAdjustments.$inferInsert;

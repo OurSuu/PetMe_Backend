@@ -16,6 +16,7 @@ import { InventoryItem, Expense, ProductCategory, Product } from '../types';
 interface ExtendedInventoryItem extends InventoryItem {
   computedProduced: number;
   computedStock: number;
+  totalAdjusted: number;
   daysAged: number | null;
 }
 
@@ -29,6 +30,7 @@ export default function Inventory() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState('');
@@ -38,6 +40,11 @@ export default function Inventory() {
     name: '',
     categoryId: '',
     baseCost: '0'
+  });
+
+  const [adjustFormData, setAdjustFormData] = useState({
+    quantity: '',
+    reason: ''
   });
 
   const fetchData = async () => {
@@ -52,17 +59,19 @@ export default function Inventory() {
       setCategories(catRes || []);
 
       if (invRes && expRes) {
-        const extended = invRes.map(item => {
+        const extended = invRes.map((item: any) => {
           const producedExpenses = expRes.filter(e => 
             e.productId === item.product.id
           );
           
           const computedProduced = producedExpenses.reduce((sum, e) => sum + e.quantity, 0);
-          const computedStock = computedProduced - item.totalSold;
+          const totalAdjusted = item.totalAdjusted || 0;
+          const computedStock = computedProduced - item.totalSold + totalAdjusted;
 
           return {
             ...item,
             computedProduced,
+            totalAdjusted,
             computedStock,
             daysAged: item.daysAged !== undefined ? item.daysAged : null
           };
@@ -175,6 +184,31 @@ export default function Inventory() {
     }
   };
 
+  const handleOpenAdjust = (product: Product) => {
+    setSelectedProduct(product);
+    setAdjustFormData({ quantity: '', reason: '' });
+    setIsAdjustModalOpen(true);
+  };
+
+  const handleAdjustSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+    setSubmitting(true);
+    try {
+      await api.post('/inventory/adjust', {
+        productId: selectedProduct.id,
+        quantity: parseInt(adjustFormData.quantity),
+        reason: adjustFormData.reason
+      });
+      setIsAdjustModalOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error('Failed to adjust stock', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleExport = () => {
     const exportData = inventory.map(i => ({
       ProductName: i.product.name,
@@ -270,6 +304,13 @@ export default function Inventory() {
             actions={role === 'owner' ? (row) => (
               <>
                 <button 
+                  onClick={() => handleOpenAdjust(row.product)} 
+                  className="p-1 text-text-muted hover:text-accent-primary transition-colors font-bold text-lg leading-none flex items-center justify-center w-6 h-6"
+                  title="Adjust Stock"
+                >
+                  ±
+                </button>
+                <button 
                   onClick={() => handleOpenModal(row.product)} 
                   className="p-1 text-text-muted hover:text-accent-primary transition-colors"
                   title="Edit Product"
@@ -357,6 +398,33 @@ export default function Inventory() {
           <div className="pt-4 flex justify-end gap-3 border-t border-border-primary/50">
             <Button type="button" variant="ghost" onClick={() => setIsCategoryModalOpen(false)}>Cancel</Button>
             <Button type="submit" loading={submitting}>Add</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={isAdjustModalOpen} onClose={() => setIsAdjustModalOpen(false)} title="Adjust Stock" size="sm">
+        <form onSubmit={handleAdjustSubmit} className="space-y-4">
+          <div className="text-sm text-text-secondary mb-4">
+            Adjusting stock for: <strong className="text-text-primary">{selectedProduct?.name}</strong>
+          </div>
+          <Input
+            label="Quantity Adjustment (+/-)"
+            type="number"
+            value={adjustFormData.quantity}
+            onChange={(e) => setAdjustFormData({...adjustFormData, quantity: e.target.value})}
+            placeholder="e.g. -5 to remove, 10 to add"
+            required
+            autoFocus
+          />
+          <Input
+            label="Reason (Optional)"
+            value={adjustFormData.reason}
+            onChange={(e) => setAdjustFormData({...adjustFormData, reason: e.target.value})}
+            placeholder="e.g. Damaged, Sample, Correction"
+          />
+          <div className="pt-4 flex justify-end gap-3 border-t border-border-primary/50">
+            <Button type="button" variant="ghost" onClick={() => setIsAdjustModalOpen(false)}>Cancel</Button>
+            <Button type="submit" loading={submitting}>Confirm</Button>
           </div>
         </form>
       </Modal>

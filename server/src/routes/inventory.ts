@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { products, income, expenses } from '../db/schema.js';
+import { products, income, expenses, stockAdjustments } from '../db/schema.js';
+import { requireRole, auditLog } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -9,19 +10,18 @@ const router = Router();
  * GET /api/inventory
  *
  * Returns each product with:
- * - product info (name, category via relation)
- * - totalSold: SUM of income.quantity for that product
- * - currentStock: derived metric (future: add stock-in tracking)
+ * - product info
+ * - totalSold
+ * - totalAdjusted
+ * - currentStock (null, because frontend calculates it, or we could calculate it)
  */
 router.get('/', async (_req, res) => {
   try {
-    // Fetch all products with their category
     const allProducts = await db.query.products.findMany({
       with: { category: true },
       orderBy: (products, { asc }) => [asc(products.name)],
     });
 
-    // Aggregate sold quantities per product from the income table
     const soldAggregation = await db
       .select({
         productId: income.productId,
@@ -30,13 +30,24 @@ router.get('/', async (_req, res) => {
       .from(income)
       .groupBy(income.productId);
 
-    // Build a lookup map for quick access
     const soldMap = new Map<number, number>();
     for (const row of soldAggregation) {
       soldMap.set(row.productId, Number(row.totalSold));
     }
 
-    // Fetch production expenses to calculate aging (expenses with a productId)
+    const adjustAggregation = await db
+      .select({
+        productId: stockAdjustments.productId,
+        totalAdjusted: sql<number>`COALESCE(SUM(${stockAdjustments.quantity}), 0)`.as('total_adjusted'),
+      })
+      .from(stockAdjustments)
+      .groupBy(stockAdjustments.productId);
+
+    const adjustMap = new Map<number, number>();
+    for (const row of adjustAggregation) {
+      adjustMap.set(row.productId, Number(row.totalAdjusted));
+    }
+
     const prodExpensesRes = await db
       .select({
         productId: expenses.productId,
@@ -47,15 +58,14 @@ router.get('/', async (_req, res) => {
 
     const today = new Date();
 
-    // Compose the inventory response
     const inventory = allProducts.map((product) => {
       const totalSold = soldMap.get(product.id) ?? 0;
+      const totalAdjusted = adjustMap.get(product.id) ?? 0;
       
       let daysAged = null;
       const matchingExpenses = prodExpensesRes.filter(e => e.productId === product.id);
       
       if (matchingExpenses.length > 0) {
-        // Find the oldest production date for this product
         const oldestDate = new Date(Math.min(...matchingExpenses.map(e => new Date(e.expenseDate).getTime())));
         daysAged = Math.floor((today.getTime() - oldestDate.getTime()) / (1000 * 3600 * 24));
       }
@@ -63,6 +73,7 @@ router.get('/', async (_req, res) => {
       return {
         product,
         totalSold,
+        totalAdjusted,
         currentStock: null as number | null,
         daysAged
       };
@@ -71,6 +82,31 @@ router.get('/', async (_req, res) => {
     res.json(inventory);
   } catch (err) {
     console.error('Failed to fetch inventory:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/inventory/adjust
+ */
+router.post('/adjust', requireRole(['owner', 'staff']), auditLog('Adjust Stock'), async (req, res) => {
+  try {
+    const { productId, quantity, reason } = req.body;
+    
+    if (!productId || typeof quantity !== 'number' || quantity === 0) {
+      res.status(400).json({ error: 'Invalid parameters' });
+      return;
+    }
+
+    const [adjustment] = await db.insert(stockAdjustments).values({
+      productId: Number(productId),
+      quantity: Number(quantity),
+      reason: reason ? String(reason).substring(0, 255) : null,
+    }).returning();
+
+    res.status(201).json({ message: 'Stock adjusted successfully', adjustment });
+  } catch (err) {
+    console.error('Failed to adjust stock:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
