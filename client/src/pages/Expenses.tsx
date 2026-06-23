@@ -16,7 +16,6 @@ export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const role = localStorage.getItem('userRole') || 'staff';
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -226,16 +225,24 @@ export default function Expenses() {
             columns={columns} 
             data={expenses} 
             loading={loading}
-            actions={role === 'owner' ? (row) => (
+            actions={(row) => (
               <>
-                <button onClick={() => handleOpenModal(row)} className="p-1 text-text-muted hover:text-accent-primary transition-colors">
+                <button 
+                  onClick={() => handleOpenModal(row)} 
+                  className="p-1 text-text-muted hover:text-accent-primary transition-colors"
+                  title="Edit Expense"
+                >
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button onClick={() => { setSelectedExpense(row); setIsDeleteOpen(true); }} className="p-1 text-text-muted hover:text-accent-danger transition-colors">
+                <button 
+                  onClick={() => handleOpenDelete(row)} 
+                  className="p-1 text-text-muted hover:text-accent-danger transition-colors"
+                  title="Delete Expense"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </>
-            ) : undefined}
+            )}
           />
         </Card>
       </div>

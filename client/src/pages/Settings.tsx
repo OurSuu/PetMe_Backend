@@ -23,7 +23,6 @@ export default function Settings() {
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [channels, setChannels] = useState<SalesChannel[]>([]);
   const [loading, setLoading] = useState(true);
-  const role = localStorage.getItem('userRole') || 'staff';
 
   // Category Modal State
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
@@ -262,7 +261,7 @@ export default function Settings() {
                 columns={catColumns} 
                 data={categories} 
                 loading={loading}
-                actions={role === 'owner' ? (row) => (
+                actions={(row) => (
                   <>
                     <button 
                       onClick={() => handleOpenCatModal(row)} 
@@ -277,7 +276,7 @@ export default function Settings() {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </>
-                ) : undefined}
+                )}
               />
             </div>
           </Card>

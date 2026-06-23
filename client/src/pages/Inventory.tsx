@@ -24,7 +24,6 @@ export default function Inventory() {
   const [inventory, setInventory] = useState<ExtendedInventoryItem[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const role = localStorage.getItem('userRole') || 'staff';
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -272,7 +271,7 @@ export default function Inventory() {
             data={inventory} 
             loading={loading}
             keyExtractor={(row) => row.product.id.toString()}
-            actions={role === 'owner' ? (row) => (
+            actions={(row) => (
               <>
                 <button 
                   onClick={() => handleOpenAdjust(row.product)} 
@@ -296,7 +295,7 @@ export default function Inventory() {
                   <Trash2 className="w-4 h-4" />
                 </button>
               </>
-            ) : undefined}
+            )}
           />
         </Card>
       </div>

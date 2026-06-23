@@ -18,7 +18,6 @@ export default function IncomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [channels, setChannels] = useState<SalesChannel[]>([]);
   const [loading, setLoading] = useState(true);
-  const role = localStorage.getItem('userRole') || 'staff';
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -262,16 +261,24 @@ export default function IncomePage() {
             columns={columns} 
             data={incomeList} 
             loading={loading}
-            actions={role === 'owner' ? (row) => (
+            actions={(row) => (
               <>
-                <button onClick={() => handleOpenModal(row)} className="p-1 text-text-muted hover:text-accent-primary transition-colors">
+                <button 
+                  onClick={() => handleOpenModal(row)} 
+                  className="p-1 text-text-muted hover:text-accent-primary transition-colors"
+                  title="Edit Sale"
+                >
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button onClick={() => { setSelectedIncome(row); setIsDeleteOpen(true); }} className="p-1 text-text-muted hover:text-accent-danger transition-colors">
+                <button 
+                  onClick={() => { setSelectedIncome(row); setIsDeleteOpen(true); }} 
+                  className="p-1 text-text-muted hover:text-accent-danger transition-colors"
+                  title="Delete Sale"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </>
-            ) : undefined}
+            )}
           />
         </Card>
       </div>

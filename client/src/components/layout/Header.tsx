@@ -12,24 +12,11 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle, children, onMenuClick }: HeaderProps) {
   const { openMobileMenu } = useLayoutContext();
-  const [role, setRole] = useState(() => localStorage.getItem('userRole') || 'owner');
   
   const handleMenuClick = onMenuClick || openMobileMenu;
 
-  const handleToggleRole = () => {
-    const newRole = role === 'owner' ? 'staff' : 'owner';
-    localStorage.setItem('userRole', newRole);
-    setRole(newRole);
-    window.location.reload();
-  };
-
   return (
-    <header className={`h-16 px-4 md:px-8 border-b border-border-primary bg-surface-primary/80 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between ${role === 'staff' ? 'border-b-accent-warning border-b-2' : ''}`}>
-      {role === 'staff' && (
-        <div className="absolute top-full left-0 w-full bg-accent-warning text-bg-primary text-xs font-bold text-center py-0.5 z-40 shadow-sm">
-          STAFF MODE - VIEW ONLY
-        </div>
-      )}
+    <header className="h-16 px-4 md:px-8 border-b border-border-primary bg-surface-primary/80 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <button 
           onClick={handleMenuClick}
@@ -47,13 +34,6 @@ export default function Header({ title, subtitle, children, onMenuClick }: Heade
       </div>
       
       <div className="flex items-center gap-4 mt-4 sm:mt-0">
-        <button 
-          onClick={handleToggleRole}
-          className="px-3 py-1.5 text-xs font-medium rounded border border-border-primary bg-surface-card hover:bg-surface-secondary transition-colors"
-          title="Simulate Auth Role Switch"
-        >
-          Role: <span className={role === 'owner' ? 'text-accent-primary' : 'text-accent-warning'}>{role.toUpperCase()}</span>
-        </button>
         {children && (
           <div className="flex items-center gap-3">
             {children}
