@@ -6,6 +6,7 @@ import { validateBody, expenseSchema } from '../middleware/validation.js';
 import { requireRole, auditLog } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { products, productCategories } from '../db/schema.js';
+import { sendDiscordNotification } from '../utils/discord.js';
 
 const router = Router();
 
@@ -94,6 +95,31 @@ router.post('/', upload.single('receipt'), auditLog('Create Expense'), async (re
     }
 
     const [created] = await db.insert(expenses).values(values as any).returning();
+
+    // 4. Send Discord Notification
+    try {
+      await sendDiscordNotification({
+        title: '💸 New Expense Logged!',
+        description: `An expense for **${values.description || 'Unknown'}** was just recorded.`,
+        color: 16734296, // Red
+        fields: [
+          {
+            name: 'Amount',
+            value: `฿${Number(values.amount).toLocaleString()}`,
+            inline: true
+          },
+          {
+            name: 'Quantity',
+            value: (values.quantity || 1).toString(),
+            inline: true
+          }
+        ],
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('Failed to notify discord about expense:', err);
+    }
+
     res.status(201).json(created);
   } catch (err) {
     console.error('Failed to create expense:', err);
