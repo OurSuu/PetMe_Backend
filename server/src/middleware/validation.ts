@@ -84,7 +84,8 @@ export const expenseSchema = z.object({
 });
 
 export const incomeSchema = z.object({
-  productId: z.number().int().positive(),
+  productId: z.number().int().positive().optional().nullable(),
+  productName: z.string().optional(),
   channelId: z.number().int().positive(),
   quantity: z.number().int().min(1).default(1),
   fullPrice: z.string().or(z.number()).transform(String),

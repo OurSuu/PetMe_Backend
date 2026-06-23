@@ -27,7 +27,7 @@ export default function IncomePage() {
   const [syncing, setSyncing] = useState(false);
 
   const [formData, setFormData] = useState({
-    productId: '',
+    productName: '',
     channelId: '',
     quantity: '1',
     fullPrice: '',
@@ -62,7 +62,7 @@ export default function IncomePage() {
     if (income) {
       setSelectedIncome(income);
       setFormData({
-        productId: income.productId.toString(),
+        productName: income.product?.name || '',
         channelId: income.channelId.toString(),
         quantity: income.quantity.toString(),
         fullPrice: income.fullPrice,
@@ -73,7 +73,7 @@ export default function IncomePage() {
     } else {
       setSelectedIncome(null);
       setFormData({
-        productId: products.length > 0 ? products[0].id.toString() : '',
+        productName: '',
         channelId: channels.length > 0 ? channels[0].id.toString() : '',
         quantity: '1',
         fullPrice: '',
@@ -87,13 +87,13 @@ export default function IncomePage() {
 
   // Auto populate full price based on selected product baseCost
   useEffect(() => {
-    if (!selectedIncome && formData.productId) {
-      const prod = products.find(p => p.id.toString() === formData.productId);
+    if (!selectedIncome && formData.productName) {
+      const prod = products.find(p => p.name.toLowerCase() === formData.productName.toLowerCase());
       if (prod && prod.baseCost) {
         setFormData(prev => ({ ...prev, fullPrice: prod.baseCost }));
       }
     }
-  }, [formData.productId, products, selectedIncome]);
+  }, [formData.productName, products, selectedIncome]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,7 +105,7 @@ export default function IncomePage() {
       const net = full - discountAmt;
 
       const payload = {
-        productId: parseInt(formData.productId),
+        productName: formData.productName,
         channelId: parseInt(formData.channelId),
         quantity: parseInt(formData.quantity),
         fullPrice: full.toString(),
@@ -279,15 +279,21 @@ export default function IncomePage() {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={selectedIncome ? "Edit Sale" : "Log New Sale"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Product"
-              value={formData.productId}
-              onChange={(e) => setFormData({...formData, productId: e.target.value})}
-              options={products
-                .filter(p => !p.isArchived || p.id.toString() === formData.productId)
-                .map(p => ({ value: p.id, label: p.name }))}
-              required
-            />
+            <div>
+              <Input
+                label="Product Name"
+                value={formData.productName}
+                onChange={(e) => setFormData({...formData, productName: e.target.value})}
+                list="product-list"
+                placeholder="Start typing product name..."
+                required
+              />
+              <datalist id="product-list">
+                {products.filter(p => !p.isArchived).map(p => (
+                  <option key={p.id} value={p.name} />
+                ))}
+              </datalist>
+            </div>
             <Select
               label="Sales Channel"
               value={formData.channelId}

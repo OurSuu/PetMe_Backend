@@ -90,6 +90,7 @@ export const expenses = pgTable('expenses', {
 /** Income / Sales transactions */
 export const income = pgTable('income', {
   id: serial('id').primaryKey(),
+  preorderId: integer('preorder_id'), // To prevent duplicate syncing from preorder web
   productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }).notNull(),
   channelId: integer('channel_id').references(() => salesChannels.id, { onDelete: 'set null' }).notNull(),
   quantity: integer('quantity').default(1).notNull(),
