@@ -68,6 +68,7 @@ export const salesChannelSchema = z.object({
 export const productSchema = z.object({
   name: z.string().min(1).max(255),
   categoryId: z.number().int().positive().nullable().optional(),
+  categoryName: z.string().optional(),
   baseCost: z.string().or(z.number()).transform(String).optional(),
 });
 

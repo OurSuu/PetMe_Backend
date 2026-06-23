@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, ilike } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { products, income } from '../db/schema.js';
+import { products, income, productCategories } from '../db/schema.js';
 import { validateBody, productSchema } from '../middleware/validation.js';
 import { requireRole, auditLog } from '../middleware/auth.js';
 
@@ -21,10 +21,33 @@ router.get('/', async (_req, res) => {
   }
 });
 
+async function handleCategoryName(values: Record<string, any>) {
+  if (values.categoryName && typeof values.categoryName === 'string' && values.categoryName.trim() !== '') {
+    const cName = values.categoryName.trim();
+    const existingCategory = await db.query.productCategories.findFirst({
+      where: (cat, { ilike }) => ilike(cat.name, cName)
+    });
+    
+    if (existingCategory) {
+      values.categoryId = existingCategory.id;
+    } else {
+      const slug = cName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      const [newCategory] = await db.insert(productCategories).values({
+        name: cName,
+        slug
+      }).returning();
+      values.categoryId = newCategory.id;
+    }
+  }
+  delete values.categoryName;
+  return values;
+}
+
 /** POST /api/products — create */
 router.post('/', requireRole(['owner']), validateBody(productSchema), auditLog('Create Product'), async (req, res) => {
   try {
-    const [created] = await db.insert(products).values(req.body).returning();
+    const values = await handleCategoryName({ ...req.body });
+    const [created] = await db.insert(products).values(values as any).returning();
     res.status(201).json(created);
   } catch (err) {
     console.error('Failed to create product:', err);
@@ -36,9 +59,11 @@ router.post('/', requireRole(['owner']), validateBody(productSchema), auditLog('
 router.put('/:id', requireRole(['owner']), validateBody(productSchema), auditLog('Update Product'), async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const values = await handleCategoryName({ ...req.body });
+    
     const [updated] = await db
       .update(products)
-      .set(req.body)
+      .set(values as any)
       .where(eq(products.id, id))
       .returning();
 

@@ -29,16 +29,14 @@ export default function Inventory() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState('');
-  const [newCategoryName, setNewCategoryName] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
-    categoryId: '',
+    categoryName: '',
     baseCost: '0'
   });
 
@@ -95,14 +93,14 @@ export default function Inventory() {
       setSelectedProduct(product);
       setFormData({
         name: product.name,
-        categoryId: product.categoryId?.toString() || '',
+        categoryName: product.category?.name || '',
         baseCost: product.baseCost
       });
     } else {
       setSelectedProduct(null);
       setFormData({
         name: '',
-        categoryId: categories.length > 0 ? categories[0].id.toString() : '',
+        categoryName: '',
         baseCost: '0'
       });
     }
@@ -115,7 +113,7 @@ export default function Inventory() {
     try {
       const payload = {
         name: formData.name,
-        categoryId: parseInt(formData.categoryId),
+        categoryName: formData.categoryName,
         baseCost: formData.baseCost
       };
 
@@ -152,33 +150,6 @@ export default function Inventory() {
       fetchData();
     } catch (error) {
       console.error('Failed to delete/archive product', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      const slug = newCategoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-      const created = await api.post<ProductCategory>('/product-categories', {
-        name: newCategoryName,
-        slug
-      });
-      // Re-fetch categories to get the full list with new ID
-      const catRes = await api.get<ProductCategory[]>('/product-categories');
-      if (catRes) setCategories(catRes);
-      
-      // Auto-select the newly created category
-      setFormData(prev => ({ ...prev, categoryId: created.id.toString() }));
-      setIsCategoryModalOpen(false);
-      setNewCategoryName('');
-    } catch (error: any) {
-      console.error('Failed to create category', error);
-      if (error?.status === 409) {
-        alert('A category with this name already exists.');
-      }
     } finally {
       setSubmitting(false);
     }
@@ -339,26 +310,17 @@ export default function Inventory() {
             required
             autoFocus
           />
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
-              <Select
-                label="Category"
-                value={formData.categoryId}
-                onChange={(e) => setFormData({...formData, categoryId: e.target.value})}
-                options={categories.map(c => ({ value: c.id, label: c.name }))}
-                required
-              />
-            </div>
-            <Button 
-              type="button" 
-              variant="secondary" 
-              onClick={() => setIsCategoryModalOpen(true)}
-              className="mb-1"
-              title="Add New Category"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
+          <Input
+            label="Category"
+            value={formData.categoryName}
+            onChange={(e) => setFormData({...formData, categoryName: e.target.value})}
+            placeholder="e.g. T-Shirt"
+            list="category-suggestions"
+            required
+          />
+          <datalist id="category-suggestions">
+            {categories.map(c => <option key={c.id} value={c.name} />)}
+          </datalist>
           <Input
             label="Base Cost (฿)"
             type="number"
@@ -385,22 +347,6 @@ export default function Inventory() {
         loading={submitting}
         variant="danger"
       />
-
-      <Modal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} title="Quick Add Category" size="sm">
-        <form onSubmit={handleCreateCategory} className="space-y-4">
-          <Input
-            label="Category Name"
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            required
-            autoFocus
-          />
-          <div className="pt-4 flex justify-end gap-3 border-t border-border-primary/50">
-            <Button type="button" variant="ghost" onClick={() => setIsCategoryModalOpen(false)}>Cancel</Button>
-            <Button type="submit" loading={submitting}>Add</Button>
-          </div>
-        </form>
-      </Modal>
 
       <Modal isOpen={isAdjustModalOpen} onClose={() => setIsAdjustModalOpen(false)} title="Adjust Stock" size="sm">
         <form onSubmit={handleAdjustSubmit} className="space-y-4">
