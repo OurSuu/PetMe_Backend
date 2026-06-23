@@ -122,8 +122,9 @@ export default function Inventory() {
       }
       setIsModalOpen(false);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save product', error);
+      alert('Error saving product: ' + (error.message || 'Unknown error'));
     } finally {
       setSubmitting(false);
     }
@@ -146,8 +147,9 @@ export default function Inventory() {
       await api.delete(`/products/${selectedProduct.id}`);
       setIsDeleteOpen(false);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete/archive product', error);
+      alert('Error deleting product: ' + (error.message || 'Unknown error'));
     } finally {
       setSubmitting(false);
     }
@@ -162,17 +164,25 @@ export default function Inventory() {
   const handleAdjustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
+    
+    const qty = parseInt(adjustFormData.quantity);
+    if (isNaN(qty) || qty === 0) {
+      alert('Please enter a valid non-zero number (e.g. 10 or -5).');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await api.post('/inventory/adjust', {
         productId: selectedProduct.id,
-        quantity: parseInt(adjustFormData.quantity),
+        quantity: qty,
         reason: adjustFormData.reason
       });
       setIsAdjustModalOpen(false);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to adjust stock', error);
+      alert('Error adjusting stock: ' + (error.message || 'Unknown error'));
     } finally {
       setSubmitting(false);
     }
@@ -366,6 +376,11 @@ export default function Inventory() {
             onChange={(e) => setAdjustFormData({...adjustFormData, reason: e.target.value})}
             placeholder="e.g. Damaged, Sample, Correction"
           />
+          {selectedProduct && (
+            <div className="text-xs text-text-muted mt-2 p-2 bg-surface-secondary rounded">
+              <strong>Tip:</strong> Stock is calculated automatically. To reset stock to 0, adjust it by the opposite of the current stock (e.g., if stock is -1000, add +1000).
+            </div>
+          )}
           <div className="pt-4 flex justify-end gap-3 border-t border-border-primary/50">
             <Button type="button" variant="ghost" onClick={() => setIsAdjustModalOpen(false)}>Cancel</Button>
             <Button type="submit" loading={submitting}>Confirm</Button>
