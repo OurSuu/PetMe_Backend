@@ -22,7 +22,11 @@ const __dirname = path.dirname(__filename);
 
 // Ensure upload directories exist
 const uploadsDir = path.resolve(__dirname, '../../uploads/receipts');
-fs.mkdirSync(uploadsDir, { recursive: true });
+try {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+} catch (error) {
+  console.warn('Could not create uploads directory (expected in serverless environments):', error);
+}
 
 // ── Express app ──────────────────────────────────────────────
 const app = express();
@@ -51,10 +55,11 @@ app.use('/api/settings', settingsRouter);
 app.use('/api/webhooks', webhooksRouter);
 
 // ── Start server ─────────────────────────────────────────────
-initCronJobs();
-
-app.listen(PORT, () => {
-  console.log(`🐾 PetMe API server running on http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  initCronJobs();
+  app.listen(PORT, () => {
+    console.log(`🐾 PetMe API server running on http://localhost:${PORT}`);
+  });
+}
 
 export default app;
