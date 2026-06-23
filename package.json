@@ -2,6 +2,7 @@
   "name": "petme-financial-dashboard",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Back-office financial dashboard for PetMe clothing brand",
   "scripts": {
     "postinstall": "npm install --prefix client && npm install --prefix server",
