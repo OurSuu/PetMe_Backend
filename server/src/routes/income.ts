@@ -5,6 +5,7 @@ import { db } from '../db/index.js';
 import { income, products, productCategories, salesChannels } from '../db/schema.js';
 import { validateBody, incomeSchema } from '../middleware/validation.js';
 import { requireRole, auditLog } from '../middleware/auth.js';
+import { sendDiscordNotification } from '../utils/discord.js';
 
 const router = Router();
 
@@ -159,6 +160,27 @@ router.post('/', validateBody(incomeSchema), auditLog('Create Income'), async (r
     values.productId = finalProductId;
 
     const [created] = await db.insert(income).values(values as any).returning();
+
+    // Send Discord Notification
+    try {
+      const channel = await db.query.salesChannels.findFirst({ where: eq(salesChannels.id, created.channelId) });
+      let pName = values.productName || 'Unknown Product';
+      if (!values.productName) {
+        const prod = await db.query.products.findFirst({ where: eq(products.id, finalProductId) });
+        if (prod) pName = prod.name;
+      }
+      await sendDiscordNotification({
+        title: '💰 New Manual Income Logged',
+        description: `Income received from **${channel?.name || 'Manual Entry'}**`,
+        color: 5814783,
+        fields: [
+          { name: 'Product', value: String(pName), inline: true },
+          { name: 'Quantity', value: String(created.quantity), inline: true },
+          { name: 'Net Amount', value: `฿${Number(created.netAmount).toLocaleString()}`, inline: true }
+        ]
+      });
+    } catch (e) { console.error('Failed discord income notif:', e); }
+
     res.status(201).json(created);
   } catch (err) {
     console.error('Failed to create income:', err);
