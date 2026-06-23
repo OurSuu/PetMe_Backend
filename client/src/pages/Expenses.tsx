@@ -133,6 +133,11 @@ export default function Expenses() {
     }
   };
 
+  const handleOpenDelete = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setIsDeleteOpen(true);
+  };
+
   const handleToggleCleared = async (expense: Expense) => {
     try {
       await api.put(`/expenses/${expense.id}`, {

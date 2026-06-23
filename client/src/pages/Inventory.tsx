@@ -6,7 +6,6 @@ import Button from '../components/ui/Button';
 import DataTable, { Column } from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Badge from '../components/ui/Badge';
 import { api } from '../api/client';
