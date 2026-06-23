@@ -88,6 +88,49 @@ router.post('/preorder', async (req, res) => {
       saleDate: order.createdAt ? new Date(order.createdAt).toISOString() : new Date().toISOString()
     });
 
+    // 4. Send Discord Notification
+    const discordWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
+    if (discordWebhookUrl) {
+      try {
+        const message = {
+          content: null,
+          embeds: [
+            {
+              title: '🎉 New Preorder Income Logged!',
+              description: `An order for **${fullProductName}** was just confirmed and logged.`,
+              color: 5814783, // Greenish blue
+              fields: [
+                {
+                  name: 'Product',
+                  value: fullProductName,
+                  inline: true
+                },
+                {
+                  name: 'Quantity',
+                  value: (order.quantity || 1).toString(),
+                  inline: true
+                },
+                {
+                  name: 'Total Price',
+                  value: `฿${order.totalPrice.toLocaleString()}`,
+                  inline: true
+                }
+              ],
+              timestamp: new Date().toISOString()
+            }
+          ]
+        };
+
+        await fetch(discordWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(message)
+        });
+      } catch (err) {
+        console.error('Failed to send Discord notification:', err);
+      }
+    }
+
     res.status(200).json({ success: true, message: 'Preorder mapped to income successfully' });
   } catch (error) {
     console.error('Failed to process preorder webhook:', error);
