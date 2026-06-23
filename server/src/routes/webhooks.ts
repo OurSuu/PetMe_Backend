@@ -77,8 +77,31 @@ router.post('/preorder', async (req, res) => {
       productId = newProduct.id;
     }
 
-    // 3. Create Income record
-    await db.insert(income).values({
+    // 3. Create or Update Income record
+    const preorderId = order.id || order.orderId;
+    const isShipped = order.status === 'shipped';
+
+    let incomeRecord;
+    
+    if (preorderId) {
+      const existingIncome = await db.query.income.findFirst({
+        where: eq(income.preorderId, parseInt(preorderId))
+      });
+
+      if (existingIncome) {
+        // Update existing record
+        [incomeRecord] = await db.update(income)
+          .set({ isShipped })
+          .where(eq(income.id, existingIncome.id))
+          .returning();
+          
+        res.status(200).json({ success: true, message: 'Preorder updated successfully', data: incomeRecord });
+        return;
+      }
+    }
+
+    [incomeRecord] = await db.insert(income).values({
+      preorderId: preorderId ? parseInt(preorderId) : null,
       productId,
       channelId,
       quantity: order.quantity || 1,
@@ -86,8 +109,9 @@ router.post('/preorder', async (req, res) => {
       netAmount: order.totalPrice.toString(),
       cashFlowStatus: 'cleared', // Only triggered when order is paid/confirmed
       isCleared: true,
+      isShipped: isShipped,
       saleDate: order.createdAt ? new Date(order.createdAt).toISOString() : new Date().toISOString()
-    });
+    }).returning();
 
     // 4. Send Discord Notification
     await sendDiscordNotification({

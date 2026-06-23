@@ -100,6 +100,7 @@ export const income = pgTable('income', {
   discountAmount: decimal('discount_amount', { precision: 12, scale: 2 }).default('0').notNull(),
   cashFlowStatus: varchar('cash_flow_status', { length: 20 }).default('pending').notNull(), // 'pending' | 'cleared'
   isCleared: boolean('is_cleared').default(false).notNull(),
+  isShipped: boolean('is_shipped').default(true).notNull(),
   saleDate: date('sale_date').defaultNow().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

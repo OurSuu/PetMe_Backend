@@ -28,6 +28,7 @@ router.get('/', async (_req, res) => {
         totalSold: sql<number>`COALESCE(SUM(${income.quantity}), 0)`.as('total_sold'),
       })
       .from(income)
+      .where(eq(income.isShipped, true))
       .groupBy(income.productId);
 
     const soldMap = new Map<number, number>();

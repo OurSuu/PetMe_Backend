@@ -171,6 +171,19 @@ export default function IncomePage() {
     }
   };
 
+  const handleToggleShipped = async (income: Income) => {
+    try {
+      await api.put(`/income/${income.id}`, {
+        ...income,
+        isShipped: !income.isShipped
+      });
+      fetchData();
+    } catch (error: any) {
+      console.error('Failed to update shipped status', error);
+      alert('Error: ' + error.message);
+    }
+  };
+
   const handleExport = () => {
     const exportData = incomeList.map(i => ({
       Date: i.saleDate,
@@ -230,6 +243,19 @@ export default function IncomePage() {
           checked={!!val} 
           onChange={() => handleToggleCleared(row)}
           className="w-4 h-4 rounded border-border-hover bg-surface-secondary text-accent-primary focus:ring-accent-primary/50 cursor-pointer"
+        />
+      )
+    },
+    {
+      key: 'isShipped',
+      header: 'Shipped (Stock Deducted)',
+      align: 'center',
+      render: (val, row) => (
+        <input 
+          type="checkbox" 
+          checked={!!val} 
+          onChange={() => handleToggleShipped(row)}
+          className="w-4 h-4 rounded border-border-hover bg-surface-secondary text-accent-success focus:ring-accent-success/50 cursor-pointer"
         />
       )
     }

@@ -57,6 +57,7 @@ export interface Income {
   discountAmount: string;
   cashFlowStatus: 'pending' | 'cleared';
   isCleared: boolean;
+  isShipped: boolean;
   saleDate: string;
   createdAt: string;
   updatedAt: string;
