@@ -166,7 +166,7 @@ router.post('/', validateBody(incomeSchema), auditLog('Create Income'), async (r
       const channel = await db.query.salesChannels.findFirst({ where: eq(salesChannels.id, created.channelId) });
       let pName = values.productName || 'Unknown Product';
       if (!values.productName) {
-        const prod = await db.query.products.findFirst({ where: eq(products.id, finalProductId) });
+        const prod = await db.query.products.findFirst({ where: eq(products.id, finalProductId as number) });
         if (prod) pName = prod.name;
       }
       await sendDiscordNotification({
