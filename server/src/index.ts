@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 
@@ -16,12 +15,8 @@ import settingsRouter from './routes/settings.js';
 import webhooksRouter from './routes/webhooks.js';
 import { initCronJobs } from './jobs/cron.js';
 
-// ── Directory setup ──────────────────────────────────────────
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Ensure upload directories exist
-const uploadsDir = path.resolve(__dirname, '../../uploads/receipts');
+const uploadsDir = path.resolve(process.cwd(), 'uploads/receipts');
 try {
   fs.mkdirSync(uploadsDir, { recursive: true });
 } catch (error) {
@@ -37,7 +32,7 @@ app.use(cors()); // allow all origins for dev
 app.use(express.json());
 
 // Serve uploaded files statically
-app.use('/uploads', express.static(path.resolve(__dirname, '../../uploads')));
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
 // ── Health check ─────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {

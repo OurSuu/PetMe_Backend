@@ -1,12 +1,8 @@
 import path from 'path';
-import { fileURLToPath } from 'url';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const UPLOAD_DIR = path.resolve(__dirname, '../../../uploads/receipts');
+const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads/receipts');
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
