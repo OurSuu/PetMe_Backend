@@ -96,6 +96,8 @@ export const incomeSchema = z.object({
   cashFlowStatus: z.enum(['pending', 'cleared']).default('pending'),
   isCleared: z.boolean().optional(),
   isShipped: z.boolean().optional(),
+  isRefunded: z.boolean().optional(),
+  orderStatus: z.string().optional(),
   saleDate: z.string().optional(),
 });
 

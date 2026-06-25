@@ -186,6 +186,19 @@ export default function IncomePage() {
     }
   };
 
+  const handleToggleRefunded = async (income: Income) => {
+    try {
+      await api.put(`/income/${income.id}`, {
+        ...income,
+        isRefunded: !income.isRefunded
+      });
+      fetchData();
+    } catch (error: any) {
+      console.error('Failed to update refund status', error);
+      if (error?.status === 403) alert('Forbidden: Only Owners can modify transaction status.');
+    }
+  };
+
   const handleExport = () => {
     const exportData = incomeList.map(i => ({
       Date: i.saleDate,
@@ -227,13 +240,31 @@ export default function IncomePage() {
       key: 'netAmount',
       header: 'Net Total',
       align: 'right',
-      render: (val, row) => `฿${(parseFloat(val) * row.quantity).toLocaleString()}`
+      render: (val, row) => (
+        <span className={row.isRefunded ? 'line-through text-text-muted' : ''}>
+          ฿{(parseFloat(val) * row.quantity).toLocaleString()}
+        </span>
+      )
     },
     {
       key: 'cashFlowStatus',
       header: 'Status',
       align: 'center',
-      render: (val) => <Badge variant={val === 'cleared' ? 'success' : 'warning'}>{val}</Badge>
+      render: (val, row) => (
+        <div className="flex flex-col gap-1 items-center">
+          <Badge variant={val === 'cleared' ? 'success' : 'warning'}>{val}</Badge>
+          {row.orderStatus && row.orderStatus !== 'unknown' && (
+            <span className={`text-[10px] uppercase tracking-wider ${row.orderStatus === 'cancelled' ? 'text-accent-danger' : 'text-text-muted'}`}>
+              {row.orderStatus}
+            </span>
+          )}
+          {row.orderStatus === 'cancelled' && row.isCleared && (
+            <span className="text-[10px] text-accent-danger text-center leading-tight mt-1 opacity-80">
+              (ยกเลิกหลังจาก<br/>ได้รับเงินแล้ว)
+            </span>
+          )}
+        </div>
+      )
     },
     {
       key: 'isCleared',
@@ -258,6 +289,19 @@ export default function IncomePage() {
           checked={!!val} 
           onChange={() => handleToggleShipped(row)}
           className="w-4 h-4 rounded border-border-hover bg-surface-secondary text-accent-success focus:ring-accent-success/50 cursor-pointer"
+        />
+      )
+    },
+    {
+      key: 'isRefunded',
+      header: 'Refunded (คืนเงินลูกค้า)',
+      align: 'center',
+      render: (val, row) => (
+        <input 
+          type="checkbox" 
+          checked={!!val} 
+          onChange={() => handleToggleRefunded(row)}
+          className="w-4 h-4 rounded border-border-hover bg-surface-secondary text-accent-danger focus:ring-accent-danger/50 cursor-pointer"
         />
       )
     }

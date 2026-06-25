@@ -101,6 +101,8 @@ export const income = pgTable('income', {
   cashFlowStatus: varchar('cash_flow_status', { length: 20 }).default('pending').notNull(), // 'pending' | 'cleared'
   isCleared: boolean('is_cleared').default(false).notNull(),
   isShipped: boolean('is_shipped').default(true).notNull(),
+  isRefunded: boolean('is_refunded').default(false).notNull(),
+  orderStatus: varchar('order_status', { length: 50 }).default('unknown').notNull(),
   saleDate: date('sale_date').defaultNow().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

@@ -91,7 +91,7 @@ router.post('/preorder', async (req, res) => {
 
       if (existingIncome) {
         // Update existing record
-        const updateData: any = { isShipped };
+        const updateData: any = { isShipped, orderStatus: order.status || 'unknown' };
         
         if (order.status === 'cancelled' || order.status === 'pending') {
           updateData.isCleared = false;
@@ -126,6 +126,7 @@ router.post('/preorder', async (req, res) => {
       cashFlowStatus: 'cleared', // Only triggered when order is paid/confirmed
       isCleared: true,
       isShipped: isShipped,
+      orderStatus: order.status || 'unknown',
       saleDate: order.createdAt ? new Date(order.createdAt).toISOString() : new Date().toISOString()
     }).returning();
 

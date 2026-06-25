@@ -264,17 +264,29 @@ export default function Expenses() {
             required
           />
 
-          <div className="flex items-center gap-2 pt-2 pb-2">
-            <input
-              type="checkbox"
-              id="isProduct"
-              checked={formData.isProduct}
-              onChange={(e) => setFormData({...formData, isProduct: e.target.checked})}
-              className="w-4 h-4 rounded border-border-hover bg-surface-secondary text-accent-primary focus:ring-accent-primary/50 cursor-pointer"
-            />
-            <label htmlFor="isProduct" className="text-sm text-text-primary cursor-pointer select-none">
-              This is a Product Stock Cost (เป็นต้นทุนสินค้า)
-            </label>
+          <div className="flex bg-surface-secondary p-1 rounded-lg">
+            <button
+              type="button"
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                !formData.isProduct 
+                  ? 'bg-accent-primary text-white shadow-sm' 
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+              onClick={() => setFormData({...formData, isProduct: false})}
+            >
+              General Expense
+            </button>
+            <button
+              type="button"
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                formData.isProduct 
+                  ? 'bg-accent-primary text-white shadow-sm' 
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+              onClick={() => setFormData({...formData, isProduct: true})}
+            >
+              Product Cost
+            </button>
           </div>
 
           {formData.isProduct && (

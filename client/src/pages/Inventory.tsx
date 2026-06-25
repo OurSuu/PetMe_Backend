@@ -204,9 +204,9 @@ export default function Inventory() {
   };
 
   const getStockStatus = (stock: number) => {
-    if (stock <= 5) return 'danger';
-    if (stock <= 20) return 'warning';
-    return 'success';
+    if (stock < 0) return 'danger';
+    if (stock === 0) return 'success';
+    return 'info';
   };
 
   const columns: Column<ExtendedInventoryItem>[] = [
@@ -227,31 +227,37 @@ export default function Inventory() {
       render: (_, row) => <span className={`text-text-muted ${row.product.isArchived ? 'opacity-60' : ''}`}>{row.product.category?.name}</span>
     },
     {
-      key: 'computedProduced',
-      header: 'Total Produced',
+      key: 'totalSold',
+      header: 'Total Preorders (ยอดสั่งซื้อ)',
       align: 'center',
       sortable: true,
       render: (val, row) => <span className={row.product.isArchived ? 'opacity-60' : ''}>{val as number}</span>
     },
     {
-      key: 'totalSold',
-      header: 'Total Sold',
+      key: 'computedProduced',
+      header: 'Stock on Hand (ในคลัง)',
       align: 'center',
       sortable: true,
       render: (val, row) => <span className={row.product.isArchived ? 'opacity-60' : ''}>{val as number}</span>
     },
     {
       key: 'computedStock',
-      header: 'Current Stock',
+      header: 'To Produce / Surplus (ยอดผลิต/คงเหลือ)',
       align: 'center',
       sortable: true,
-      render: (val, row) => (
-        <div className={row.product.isArchived ? 'opacity-60' : ''}>
-          <Badge variant={row.product.isArchived ? 'default' : getStockStatus(val as number)}>
-            {val as number} in stock
-          </Badge>
-        </div>
-      )
+      render: (val, row) => {
+        const stock = val as number;
+        if (row.product.isArchived) {
+          return <span className="opacity-60 text-text-muted">{stock} in stock</span>;
+        }
+        if (stock < 0) {
+          return <Badge variant="danger">Needs Production: {Math.abs(stock)}</Badge>;
+        }
+        if (stock === 0) {
+          return <Badge variant="success">Ready to Ship</Badge>;
+        }
+        return <Badge variant="info">Surplus: {stock}</Badge>;
+      }
     },
     {
       key: 'daysAged',

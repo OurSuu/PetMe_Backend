@@ -58,6 +58,8 @@ export interface Income {
   cashFlowStatus: 'pending' | 'cleared';
   isCleared: boolean;
   isShipped: boolean;
+  isRefunded: boolean;
+  orderStatus: string;
   saleDate: string;
   createdAt: string;
   updatedAt: string;

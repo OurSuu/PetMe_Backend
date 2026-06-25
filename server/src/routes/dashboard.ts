@@ -73,7 +73,7 @@ router.get('/', async (req, res) => {
         totalDiscounts: sql<string>`COALESCE(SUM(${income.discountAmount}), 0)`,
       })
       .from(income)
-      .where(and(gte(income.saleDate, start), lte(income.saleDate, end)));
+      .where(and(gte(income.saleDate, start), lte(income.saleDate, end), eq(income.isRefunded, false)));
 
     const totalRevenue = Number(revenueRow.totalRevenue);
     const totalDiscounts = Number(revenueRow.totalDiscounts);
@@ -129,7 +129,7 @@ router.get('/', async (req, res) => {
       .from(income)
       .innerJoin(products, eq(income.productId, products.id))
       .innerJoin(productCategories, eq(products.categoryId, productCategories.id))
-      .where(and(gte(income.saleDate, start), lte(income.saleDate, end)))
+      .where(and(gte(income.saleDate, start), lte(income.saleDate, end), eq(income.isRefunded, false)))
       .groupBy(productCategories.name);
 
     // ── Daily summary (today's cash flow) ───────────────────
@@ -144,6 +144,7 @@ router.get('/', async (req, res) => {
         and(
           eq(income.saleDate, today),
           eq(income.cashFlowStatus, 'cleared'),
+          eq(income.isRefunded, false),
         ),
       );
 
