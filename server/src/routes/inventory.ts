@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { products, income, expenses, stockAdjustments } from '../db/schema.js';
 import { requireRole, auditLog } from '../middleware/auth.js';
@@ -28,8 +28,14 @@ router.get('/', async (_req, res) => {
         totalSold: sql<number>`COALESCE(SUM(${income.quantity}), 0)`.as('total_sold'),
       })
       .from(income)
-      .where(eq(income.isShipped, true))
+      .where(
+        and(
+          eq(income.isRefunded, false),
+          sql`${income.orderStatus} != 'cancelled'`
+        )
+      )
       .groupBy(income.productId);
+
 
     const soldMap = new Map<number, number>();
     for (const row of soldAggregation) {
