@@ -203,11 +203,6 @@ export default function Inventory() {
     downloadCSV(exportData, 'inventory_export');
   };
 
-  const getStockStatus = (stock: number) => {
-    if (stock < 0) return 'danger';
-    if (stock === 0) return 'success';
-    return 'info';
-  };
 
   const columns: Column<ExtendedInventoryItem>[] = [
     {
